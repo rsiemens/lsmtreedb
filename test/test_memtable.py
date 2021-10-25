@@ -42,11 +42,35 @@ def test_flush_tree(tmp_path):
 
     assert len(memtable.rbtree) == 0
     assert memtable.sparse_index is not None
-    assert memtable.sparse_index.find(b"a") == 0
+    assert memtable.sparse_index.find(b"a") == (0, 18)
     # 8bytes for keylen + key + 8bytes for vallen + val
     # 8 + 1 + 8 + 1
-    assert memtable.sparse_index.find(b"b") == 18
-    assert memtable.sparse_index.find(b"c") == 36
+    assert memtable.sparse_index.find(b"b") == (18, 36)
+    assert memtable.sparse_index.find(b"c") == (36, 54)
+
+
+def test_read_from_sparse_index(tmp_path):
+    memtable = MemTable(base_dir=tmp_path)
+
+    for i in [b"b", b"a", b"c"]:
+        memtable[i] = i
+
+    memtable.flush_tree()
+    memtable[b"a"] = b"hello"
+
+    # hits the rbtree
+    assert memtable[b"a"] == b"hello"
+    # hits the first segment file
+    assert memtable[b"c"] == b"c"
+
+    memtable.flush_tree()
+    # now hits the new segment file
+    assert memtable[b"a"] == b"hello"
+    # hits the old segment file
+    assert memtable[b"b"] == b"b"
+    # not found
+    with pytest.raises(KeyError):
+        memtable[b"x"]
 
 
 def test_sparse_index_find():

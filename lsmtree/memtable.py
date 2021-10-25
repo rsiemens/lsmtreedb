@@ -36,7 +36,27 @@ class MemTable:
 
     def __getitem__(self, key):
         assert isinstance(key, bytes)
-        return self.rbtree[key]
+        try:
+            return self.rbtree[key]
+        except KeyError:
+            return self.find_in_segment_file(key)
+
+    def find_in_segment_file(self, key):
+        # TODO: rough pass, clean this up
+        sparse_index = self.sparse_index
+        while sparse_index:
+            start, end = sparse_index.find(key)
+            with Segment(id=sparse_index.segment, base_dir=self.base_dir) as segment:
+                raw_val = segment.read_range(start, end)
+                key_len = struct.unpack('<Q', raw_val[:8])[0]
+                raw_key = raw_val[8:8 + key_len]
+                if raw_key == key:
+                    val_len = struct.unpack('<Q', raw_val[8 + key_len: 16 + key_len])[0]
+                    val = raw_val[16 + key_len: 16 + key_len + val_len ]
+                    return val
+                else:
+                    sparse_index = sparse_index.next
+        raise KeyError(key)
 
     def flush_tree(self):
         """
@@ -45,14 +65,15 @@ class MemTable:
         replace the RBtree with a new one.
         """
         with Segment(self.sparse_index_len, self.base_dir) as segment:
-            index = SparseIndex(entries=[], segment=segment.path)
+            index = SparseIndex(entries=[], segment=segment.id)
 
             for k, v in self.rbtree.items():
                 key_len = struct.pack("<Q", len(k))
                 val_len = struct.pack("<Q", len(v))
                 bytes_written = segment.write(key_len + k + val_len + v)
                 # TODO: this is being used as a dense index ATM!
-                index.add(k, segment.tell_eof - bytes_written)
+                eof = segment.tell_eof
+                index.add(k, (eof - bytes_written, eof))
 
         if self.sparse_index is None:
             self.sparse_index = index

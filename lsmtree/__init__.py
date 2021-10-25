@@ -14,4 +14,13 @@ The storage engine basically works like so:
 - From time to time, run a merging and compaction process in the background to
   combine segment files and to discard overwritten or deleted values.
 
+TODO:
+ - [ ] Writing blocks of keys instead of individual keys. Also make the index
+       actually sparse.
+ - [ ] Background compaction of old segment files
+ - [ ] Bloom filter for checking if a key is in segment. Attach this to the
+       sparse index.
+ - [ ] Rebuild sparse index on startup
+ - [ ] Block level compression
+ - [ ] WAL for the RBtree
 """
