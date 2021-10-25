@@ -42,11 +42,11 @@ def test_flush_tree(tmp_path):
 
     assert len(memtable.rbtree) == 0
     assert memtable.sparse_index is not None
-    assert memtable.sparse_index.find(b"a") == (0, 18)
-    # 8bytes for keylen + key + 8bytes for vallen + val
-    # 8 + 1 + 8 + 1
-    assert memtable.sparse_index.find(b"b") == (18, 36)
-    assert memtable.sparse_index.find(b"c") == (36, 54)
+    assert memtable.sparse_index.entries == [(b"a", (0, 54))]
+    # all of these keys are in the same block so they share an index
+    assert memtable.sparse_index.find(b"a") == (0, 54)
+    assert memtable.sparse_index.find(b"b") == (0, 54)
+    assert memtable.sparse_index.find(b"c") == (0, 54)
 
 
 def test_read_from_sparse_index(tmp_path):

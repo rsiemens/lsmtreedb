@@ -15,7 +15,7 @@ The storage engine basically works like so:
   combine segment files and to discard overwritten or deleted values.
 
 TODO:
- - [ ] Writing blocks of keys instead of individual keys. Also make the index
+ - [x] Writing blocks of keys instead of individual keys. Also make the index
        actually sparse.
  - [ ] Background compaction of old segment files
  - [ ] Bloom filter for checking if a key is in segment. Attach this to the

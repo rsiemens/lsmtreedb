@@ -4,6 +4,7 @@ from .rbtree import RBTree
 from .segment import Segment
 
 MEGABYTE = 1048576
+KILOBYTE = 1024
 
 
 class MemTable:
@@ -47,16 +48,32 @@ class MemTable:
         while sparse_index:
             start, end = sparse_index.find(key)
             with Segment(id=sparse_index.segment, base_dir=self.base_dir) as segment:
-                raw_val = segment.read_range(start, end)
-                key_len = struct.unpack('<Q', raw_val[:8])[0]
-                raw_key = raw_val[8:8 + key_len]
-                if raw_key == key:
-                    val_len = struct.unpack('<Q', raw_val[8 + key_len: 16 + key_len])[0]
-                    val = raw_val[16 + key_len: 16 + key_len + val_len ]
+                block = segment.read_range(start, end)
+                val = self.find_in_block(key, block)
+                if val:
                     return val
                 else:
                     sparse_index = sparse_index.next
         raise KeyError(key)
+
+    def find_in_block(self, key, block):
+        cur_offset = 0
+
+        while cur_offset < len(block):
+            key_len = struct.unpack("<Q", block[cur_offset : cur_offset + 8])[0]
+            raw_key = block[cur_offset + 8 : cur_offset + 8 + key_len]
+            val_len = struct.unpack(
+                "<Q", block[cur_offset + 8 + key_len : cur_offset + 16 + key_len]
+            )[0]
+            if raw_key == key:
+                val = block[
+                    cur_offset + 16 + key_len : cur_offset + 16 + key_len + val_len
+                ]
+                return val
+            else:
+                cur_offset += 16 + key_len + val_len
+
+        return None
 
     def flush_tree(self):
         """
@@ -67,13 +84,33 @@ class MemTable:
         with Segment(self.sparse_index_len, self.base_dir) as segment:
             index = SparseIndex(entries=[], segment=segment.id)
 
+            block_key = None
+            block = []
+            block_size = 0
+
             for k, v in self.rbtree.items():
                 key_len = struct.pack("<Q", len(k))
                 val_len = struct.pack("<Q", len(v))
-                bytes_written = segment.write(key_len + k + val_len + v)
-                # TODO: this is being used as a dense index ATM!
-                eof = segment.tell_eof
-                index.add(k, (eof - bytes_written, eof))
+                record = key_len + k + val_len + v
+
+                # TODO: handle edge case where a record is > than KILOBYTE
+                if len(record) + block_size > KILOBYTE:
+                    bytes_written = segment.write(b"".join(block))
+                    index.add(
+                        block_key, (segment.tell_eof - bytes_written, segment.tell_eof)
+                    )
+                    block_key = None
+                    block = []
+                    block_size = 0
+
+                if block_key is None:
+                    block_key = k
+                block.append(record)
+                block_size += len(record)
+
+            # write whatever is left
+            bytes_written = segment.write(b"".join(block))
+            index.add(block_key, (segment.tell_eof - bytes_written, segment.tell_eof))
 
         if self.sparse_index is None:
             self.sparse_index = index
