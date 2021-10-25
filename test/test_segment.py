@@ -1,15 +1,14 @@
 import os
 
-import pytest
-
 from lsmtree.segment import Segment
 
 
 def test_segment_write(tmp_path):
     with Segment(id=0, base_dir=tmp_path) as segment:
-        segment.write(b"hello world!")
+        written = segment.write(b"hello world!")
 
     assert os.path.exists(os.path.join(tmp_path, "segment.0"))
+    assert written == 12
 
     with open(segment.path, "rb") as f:
         assert f.read() == b"hello world!"

@@ -33,9 +33,15 @@ class Segment:
 
     def write(self, chunk):
         self.file.seek(0, io.SEEK_END)
-        self.file.write(chunk)
+        written = self.file.write(chunk)
         self.file.flush()
         os.fsync(self.file.fileno())
+        return written
+
+    @property
+    def tell_eof(self):
+        self.file.seek(0, io.SEEK_END)
+        return self.file.tell()
 
     def __enter__(self):
         self.open()

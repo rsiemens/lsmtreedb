@@ -46,3 +46,18 @@ def test_iter():
         tree[k] = k
 
     assert [k for k in tree] == [1, 2, 3, 4, 5]
+
+
+def test_items():
+    tree = RBTree()
+
+    for k in [5, 2, 3, 1, 4]:
+        tree[k] = str(k)
+
+    assert [(k, v) for k, v in tree.items()] == [
+        (1, "1"),
+        (2, "2"),
+        (3, "3"),
+        (4, "4"),
+        (5, "5"),
+    ]

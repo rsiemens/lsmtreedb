@@ -116,7 +116,7 @@ class RBTree:
         self.root = self._set_recursive(self.root, key, value)
         self.root.color = BLACK
 
-    def _gather_keys(self, queue, node):
+    def _gather_keys(self, queue, node, include_items=False):
         """
         Inorder tree traversal to get the keys in sorted order.
         """
@@ -124,15 +124,23 @@ class RBTree:
             return
 
         if node.left:
-            self._gather_keys(queue, node.left)
+            self._gather_keys(queue, node.left, include_items=include_items)
 
-        queue.append(node.key)
+        if include_items:
+            queue.append((node.key, node.value))
+        else:
+            queue.append(node.key)
 
         if node.right:
-            self._gather_keys(queue, node.right)
+            self._gather_keys(queue, node.right, include_items=include_items)
 
     def __iter__(self):
         keys = []
 
         self._gather_keys(keys, self.root)
         return iter(keys)
+
+    def items(self):
+        items = []
+        self._gather_keys(items, self.root, include_items=True)
+        return iter(items)
