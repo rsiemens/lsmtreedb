@@ -4,7 +4,7 @@ from lsmtree.memtable import MemTable, SparseIndex
 
 
 def test_enforce_bytes_only():
-    memtable = MemTable(base_dir=".")
+    memtable = MemTable(db_dir=".")
 
     with pytest.raises(AssertionError):
         memtable["key"] = b"foo"  # set key needs to be bytes
@@ -17,7 +17,7 @@ def test_enforce_bytes_only():
 
 
 def test_threshold_exceeded(tmp_path):
-    memtable = MemTable(base_dir=tmp_path, flush_tree_size=8)
+    memtable = MemTable(db_dir=tmp_path, flush_tree_size=8)
 
     memtable[b"a"] = b"b"
     assert memtable.current_size_bytes == 2
@@ -33,13 +33,12 @@ def test_threshold_exceeded(tmp_path):
 
 
 def test_flush_tree(tmp_path):
-    memtable = MemTable(base_dir=tmp_path)
+    memtable = MemTable(db_dir=tmp_path)
 
     for i in [b"b", b"a", b"c"]:
         memtable[i] = i
 
     memtable.flush_tree()
-
     assert len(memtable.rbtree) == 0
     assert memtable.sparse_index is not None
     assert memtable.sparse_index.entries == [(b"a", (0, 32))]
@@ -50,7 +49,7 @@ def test_flush_tree(tmp_path):
 
 
 def test_read_from_sparse_index(tmp_path):
-    memtable = MemTable(base_dir=tmp_path)
+    memtable = MemTable(db_dir=tmp_path)
 
     for i in [b"b", b"a", b"c"]:
         memtable[i] = i
@@ -71,6 +70,26 @@ def test_read_from_sparse_index(tmp_path):
     # not found
     with pytest.raises(KeyError):
         memtable[b"x"]
+
+
+def test_delete_key(tmp_path):
+    memtable = MemTable(db_dir=tmp_path)
+
+    memtable[b"foo"] = b"bar"
+    assert memtable[b"foo"] == b"bar"
+
+    # insert a TOMBSTONE in the tree
+    del memtable[b"foo"]
+    with pytest.raises(KeyError):
+        memtable[b"foo"]
+
+    memtable[b"foo"] = b"bar"
+    assert memtable[b"foo"] == b"bar"
+    memtable.flush_tree()
+    # now lives in a segment file. Should still raise cause of the TOMBSTONE
+    del memtable[b"foo"]
+    with pytest.raises(KeyError):
+        memtable[b"foo"]
 
 
 def test_sparse_index_find():

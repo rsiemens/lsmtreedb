@@ -12,9 +12,9 @@ class Segment:
     Reads and writes a segment file:
     """
 
-    def __init__(self, id, base_dir):
+    def __init__(self, id, db_dir):
         self.id = id
-        self.path = os.path.join(base_dir, f"segment.{self.id}")
+        self.path = os.path.join(db_dir, f"segment.{self.id}")
         self.file = None
 
     def open(self):

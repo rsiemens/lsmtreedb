@@ -6,7 +6,7 @@ from lsmtree.segment import Block, MaxSizeExceeded, Segment
 
 
 def test_segment_write(tmp_path):
-    with Segment(id=0, base_dir=tmp_path) as segment:
+    with Segment(id=0, db_dir=tmp_path) as segment:
         written = segment.write(b"hello world!")
 
     assert os.path.exists(os.path.join(tmp_path, "segment.0"))
@@ -16,7 +16,7 @@ def test_segment_write(tmp_path):
         assert f.read() == b"hello world!"
 
     # file already exists, should open for append now
-    with Segment(id=0, base_dir=tmp_path) as segment:
+    with Segment(id=0, db_dir=tmp_path) as segment:
         segment.write(b" hello again!")
 
     with open(segment.path, "rb") as f:
@@ -25,7 +25,7 @@ def test_segment_write(tmp_path):
 
 def test_segment_read(tmp_path):
     # offset, chunk
-    with Segment(id=0, base_dir=tmp_path) as segment:
+    with Segment(id=0, db_dir=tmp_path) as segment:
         segment.write(b"abcdefghijk")
         assert segment.read_range(0, 4) == b"abcd"
         assert segment.read_range(4, 7) == b"efg"

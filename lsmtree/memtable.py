@@ -3,6 +3,7 @@ from .segment import Block, Segment
 
 MEGABYTE = 1048576
 KILOBYTE = 1024
+TOMBSTONE = b""
 
 
 class MemTable:
@@ -12,8 +13,8 @@ class MemTable:
     it is flushed to disk and a new RBTree is constructed.
     """
 
-    def __init__(self, base_dir, flush_tree_size=MEGABYTE):
-        self.base_dir = base_dir
+    def __init__(self, db_dir, flush_tree_size=MEGABYTE):
+        self.db_dir = db_dir
         self.flush_tree_size = flush_tree_size
         self.current_size_bytes = 0
         self.sparse_index = None
@@ -36,9 +37,19 @@ class MemTable:
     def __getitem__(self, key):
         assert isinstance(key, bytes)
         try:
-            return self.rbtree[key]
+            val = self.rbtree[key]
         except KeyError:
-            return self.find_in_segment_file(key)
+            val = self.find_in_segment_file(key)
+
+        # value hasn't yet been cleaned up by compaction
+        if val == TOMBSTONE:
+            raise KeyError(key)
+
+        return val
+
+    def __delitem__(self, key):
+        assert isinstance(key, bytes)
+        self.rbtree[key] = b""
 
     def find_in_segment_file(self, key):
         sparse_index = self.sparse_index
@@ -46,11 +57,11 @@ class MemTable:
         while sparse_index:
             start, end = sparse_index.find(key)
 
-            with Segment(id=sparse_index.segment, base_dir=self.base_dir) as segment:
+            with Segment(id=sparse_index.segment, db_dir=self.db_dir) as segment:
                 block = segment.read_range(start, end)
                 val = self.find_in_block(key, block)
 
-                if val:
+                if val is not None:
                     return val
                 else:
                     sparse_index = sparse_index.next
@@ -69,7 +80,7 @@ class MemTable:
         in the disk. Update the sparse index linked list and then finally
         replace the RBtree with a new one.
         """
-        with Segment(self.sparse_index_len, self.base_dir) as segment:
+        with Segment(self.sparse_index_len, self.db_dir) as segment:
             index = SparseIndex(entries=[], segment=segment.id)
             block = Block()
 
