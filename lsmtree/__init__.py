@@ -21,7 +21,7 @@ TODO:
  - [ ] Bloom filter for checking if a key is in segment. Attach this to the
        sparse index.
  - [ ] Rebuild sparse index on startup
- - [ ] Block level compression
+ - [x] Block level compression
  - [ ] WAL for the RBtree
 
 
