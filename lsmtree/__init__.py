@@ -23,4 +23,9 @@ TODO:
  - [ ] Rebuild sparse index on startup
  - [ ] Block level compression
  - [ ] WAL for the RBtree
+
+
+ LIMITS:
+  Max key size is 2 ** 16
+  Max value size is 2 ** 32
 """

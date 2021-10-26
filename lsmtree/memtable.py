@@ -1,7 +1,7 @@
 import struct
 
 from .rbtree import RBTree
-from .segment import Segment
+from .segment import Block, Segment
 
 MEGABYTE = 1048576
 KILOBYTE = 1024
@@ -10,13 +10,13 @@ KILOBYTE = 1024
 class MemTable:
     """
     Wrapper around the RBTree that enforces bytes only and has an upperbound on
-    how large the tree can grow. When the tree grows past the `max_size_bytes`
+    how large the tree can grow. When the tree grows past the `flush_tree_size`
     it is flushed to disk and a new RBTree is constructed.
     """
 
-    def __init__(self, base_dir, max_size_bytes=MEGABYTE):
+    def __init__(self, base_dir, flush_tree_size=MEGABYTE):
         self.base_dir = base_dir
-        self.max_size_bytes = max_size_bytes
+        self.flush_tree_size = flush_tree_size
         self.current_size_bytes = 0
         self.sparse_index = None
         self.sparse_index_len = 0
@@ -27,7 +27,7 @@ class MemTable:
         assert isinstance(value, bytes)
 
         additional_bytes = len(key) + len(value)
-        if additional_bytes + self.current_size_bytes > self.max_size_bytes:
+        if additional_bytes + self.current_size_bytes > self.flush_tree_size:
             self.flush_tree()
             self.current_size_bytes = 0
 
@@ -43,36 +43,26 @@ class MemTable:
             return self.find_in_segment_file(key)
 
     def find_in_segment_file(self, key):
-        # TODO: rough pass, clean this up
         sparse_index = self.sparse_index
+
         while sparse_index:
             start, end = sparse_index.find(key)
+
             with Segment(id=sparse_index.segment, base_dir=self.base_dir) as segment:
                 block = segment.read_range(start, end)
                 val = self.find_in_block(key, block)
+
                 if val:
                     return val
                 else:
                     sparse_index = sparse_index.next
+
         raise KeyError(key)
 
-    def find_in_block(self, key, block):
-        cur_offset = 0
-
-        while cur_offset < len(block):
-            key_len = struct.unpack("<Q", block[cur_offset : cur_offset + 8])[0]
-            raw_key = block[cur_offset + 8 : cur_offset + 8 + key_len]
-            val_len = struct.unpack(
-                "<Q", block[cur_offset + 8 + key_len : cur_offset + 16 + key_len]
-            )[0]
-            if raw_key == key:
-                val = block[
-                    cur_offset + 16 + key_len : cur_offset + 16 + key_len + val_len
-                ]
-                return val
-            else:
-                cur_offset += 16 + key_len + val_len
-
+    def find_in_block(self, key, raw_block):
+        for k, v in Block.iter_from_binary(raw_block):
+            if k == key:
+                return v
         return None
 
     def flush_tree(self):
@@ -83,34 +73,21 @@ class MemTable:
         """
         with Segment(self.sparse_index_len, self.base_dir) as segment:
             index = SparseIndex(entries=[], segment=segment.id)
+            block = Block()
 
-            block_key = None
-            block = []
-            block_size = 0
+            for key, val in self.rbtree.items():
+                block.add(key, val)
 
-            for k, v in self.rbtree.items():
-                key_len = struct.pack("<Q", len(k))
-                val_len = struct.pack("<Q", len(v))
-                record = key_len + k + val_len + v
-
-                # TODO: handle edge case where a record is > than KILOBYTE
-                if len(record) + block_size > KILOBYTE:
-                    bytes_written = segment.write(b"".join(block))
+                if len(block) > KILOBYTE:
+                    bytes_written = segment.write(block.dump())
                     index.add(
-                        block_key, (segment.tell_eof - bytes_written, segment.tell_eof)
+                        block.key, (segment.tell_eof - bytes_written, segment.tell_eof)
                     )
-                    block_key = None
-                    block = []
-                    block_size = 0
-
-                if block_key is None:
-                    block_key = k
-                block.append(record)
-                block_size += len(record)
+                    block = Block()
 
             # write whatever is left
-            bytes_written = segment.write(b"".join(block))
-            index.add(block_key, (segment.tell_eof - bytes_written, segment.tell_eof))
+            bytes_written = segment.write(block.dump())
+            index.add(block.key, (segment.tell_eof - bytes_written, segment.tell_eof))
 
         if self.sparse_index is None:
             self.sparse_index = index

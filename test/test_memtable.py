@@ -17,7 +17,7 @@ def test_enforce_bytes_only():
 
 
 def test_threshold_exceeded(tmp_path):
-    memtable = MemTable(base_dir=tmp_path, max_size_bytes=8)
+    memtable = MemTable(base_dir=tmp_path, flush_tree_size=8)
 
     memtable[b"a"] = b"b"
     assert memtable.current_size_bytes == 2
@@ -42,11 +42,11 @@ def test_flush_tree(tmp_path):
 
     assert len(memtable.rbtree) == 0
     assert memtable.sparse_index is not None
-    assert memtable.sparse_index.entries == [(b"a", (0, 54))]
+    assert memtable.sparse_index.entries == [(b"a", (0, 32))]
     # all of these keys are in the same block so they share an index
-    assert memtable.sparse_index.find(b"a") == (0, 54)
-    assert memtable.sparse_index.find(b"b") == (0, 54)
-    assert memtable.sparse_index.find(b"c") == (0, 54)
+    assert memtable.sparse_index.find(b"a") == (0, 32)
+    assert memtable.sparse_index.find(b"b") == (0, 32)
+    assert memtable.sparse_index.find(b"c") == (0, 32)
 
 
 def test_read_from_sparse_index(tmp_path):
