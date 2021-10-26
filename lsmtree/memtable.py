@@ -1,5 +1,3 @@
-import struct
-
 from .rbtree import RBTree
 from .segment import Block, Segment
 
@@ -79,14 +77,14 @@ class MemTable:
                 block.add(key, val)
 
                 if len(block) > KILOBYTE:
-                    bytes_written = segment.write(block.dump())
+                    bytes_written = segment.write(block.dump(compress=True))
                     index.add(
                         block.key, (segment.tell_eof - bytes_written, segment.tell_eof)
                     )
                     block = Block()
 
             # write whatever is left
-            bytes_written = segment.write(block.dump())
+            bytes_written = segment.write(block.dump(compress=True))
             index.add(block.key, (segment.tell_eof - bytes_written, segment.tell_eof))
 
         if self.sparse_index is None:

@@ -1,5 +1,6 @@
 import io
 import os
+import zlib
 from struct import pack, unpack
 
 
@@ -59,19 +60,21 @@ class MaxSizeExceeded(Exception):
 class Block:
     """
     A block is logical chunk of data in a segment. It contains a simple size
-    header then key value pairs. A block is compressible and is  what the sparse
-    index points to.
+    header, flag header, and then key value pairs. A block is compressible and
+    is  what the sparse index points to.
 
     TODO: add a crc header for corruption checking
 
-    +---------------------------+------------------+-------------+------------------+-------------+
-    | 8 bytes block size header | 2 bytes key size | N bytes key | 4 bytes val size | N bytes val |
-    +---------------------------+------------------+-------------+------------------+-------------+
+    +----------------------+---------------------------+------------------+-------------+------------------+-------------+
+    | 1 bytes header flags | 8 bytes block size header | 2 bytes key size | N bytes key | 4 bytes val size | N bytes val |
+    +----------------------+---------------------------+------------------+-------------+------------------+-------------+
     """
 
-    BLOCK_SIZE_FMT = "<Q"  # unsigned 8 byte long long
+    HEADER_FMT = "<BQ"  # unsigned 8 byte long long, unsigned 1 byte char
+    HEADER_SIZE = 9
     KEY_SIZE_FMT = "<H"  # unsigned 2 byte short
     VAL_SIZE_FMT = "<I"  # unsigned 4 byte int
+    COMPRESSION_FLAG = 0b10000000
 
     def __init__(self):
         self.max_size = 2 ** 64
@@ -83,9 +86,16 @@ class Block:
     def __len__(self):
         return self.size
 
-    def dump(self):
-        size = pack(self.BLOCK_SIZE_FMT, self.size)
-        return size + b"".join(self.data)
+    def dump(self, compress=False):
+        flags = 0b00000000
+        data = b"".join(self.data)
+
+        if compress:
+            flags |= self.COMPRESSION_FLAG
+            data = zlib.compress(data, level=zlib.Z_BEST_SPEED)
+
+        header = pack(self.HEADER_FMT, flags, len(data))
+        return header + data
 
     def add(self, key, value):
         key_len = pack(self.KEY_SIZE_FMT, len(key))
@@ -106,18 +116,24 @@ class Block:
         """
         Iteratively decode key value pairs from a binary block yielding them.
         """
-        offset = 8  # skip the block size header bytes
-        size = len(block)
+        flags, _ = unpack(cls.HEADER_FMT, block[: cls.HEADER_SIZE])
+        is_compressed = flags & cls.COMPRESSION_FLAG
+        data = block[cls.HEADER_SIZE :]
 
+        if is_compressed:
+            data = zlib.decompress(data)
+
+        offset = 0
+        size = len(data)
         while offset < size:
-            key_len = unpack(cls.KEY_SIZE_FMT, block[offset : offset + 2])[0]
+            key_len = unpack(cls.KEY_SIZE_FMT, data[offset : offset + 2])[0]
             offset += 2
-            key = block[offset : offset + key_len]
+            key = data[offset : offset + key_len]
 
             offset += key_len
-            val_len = unpack(cls.VAL_SIZE_FMT, block[offset : offset + 4])[0]
+            val_len = unpack(cls.VAL_SIZE_FMT, data[offset : offset + 4])[0]
             offset += 4
-            value = block[offset : offset + val_len]
+            value = data[offset : offset + val_len]
             offset += val_len
 
             yield key, value
