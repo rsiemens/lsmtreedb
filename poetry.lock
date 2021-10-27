@@ -67,6 +67,18 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
+name = "faker"
+version = "9.7.1"
+description = "Faker is a Python package that generates fake data for you."
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+python-dateutil = ">=2.4"
+text-unidecode = "1.3"
+
+[[package]]
 name = "iniconfig"
 version = "1.1.1"
 description = "iniconfig: brain-dead simple config-ini parsing"
@@ -180,9 +192,36 @@ toml = "*"
 testing = ["argcomplete", "hypothesis (>=3.56)", "mock", "nose", "requests", "xmlschema"]
 
 [[package]]
+name = "python-dateutil"
+version = "2.8.2"
+description = "Extensions to the standard Python datetime module"
+category = "dev"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+
+[package.dependencies]
+six = ">=1.5"
+
+[[package]]
 name = "regex"
 version = "2021.10.23"
 description = "Alternative regular expression module, to replace re."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "six"
+version = "1.16.0"
+description = "Python 2 and 3 compatibility utilities"
+category = "dev"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
+
+[[package]]
+name = "text-unidecode"
+version = "1.3"
+description = "The most basic Text::Unidecode port"
 category = "dev"
 optional = false
 python-versions = "*"
@@ -214,7 +253,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "ae1aef459ae73de6092fd713b9ebd871e84525112337fba8d059cc0c2c5bda74"
+content-hash = "9bc324440a7bd2695c79c71e137b81b17cd333396693375226053cabc5905a64"
 
 [metadata.files]
 atomicwrites = [
@@ -236,6 +275,10 @@ click = [
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
+]
+faker = [
+    {file = "Faker-9.7.1-py3-none-any.whl", hash = "sha256:aad59a0cb82ac072f3109667fb2ba35ac45981ec22436c649d8fcdbf1c9e6927"},
+    {file = "Faker-9.7.1.tar.gz", hash = "sha256:d23cd665886d2e9680d90f3ce2af7a439f44de3c7becc78353ca2f49b0015352"},
 ]
 iniconfig = [
     {file = "iniconfig-1.1.1-py2.py3-none-any.whl", hash = "sha256:011e24c64b7f47f6ebd835bb12a743f2fbe9a26d4cecaa7f53bc4f35ee9da8b3"},
@@ -277,6 +320,10 @@ pytest = [
     {file = "pytest-6.2.5-py3-none-any.whl", hash = "sha256:7310f8d27bc79ced999e760ca304d69f6ba6c6649c0b60fb0e04a4a77cacc134"},
     {file = "pytest-6.2.5.tar.gz", hash = "sha256:131b36680866a76e6781d13f101efb86cf674ebb9762eb70d3082b6f29889e89"},
 ]
+python-dateutil = [
+    {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
+    {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
+]
 regex = [
     {file = "regex-2021.10.23-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:45b65d6a275a478ac2cbd7fdbf7cc93c1982d613de4574b56fd6972ceadb8395"},
     {file = "regex-2021.10.23-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:74d071dbe4b53c602edd87a7476ab23015a991374ddb228d941929ad7c8c922e"},
@@ -314,6 +361,14 @@ regex = [
     {file = "regex-2021.10.23-cp39-cp39-win32.whl", hash = "sha256:a30513828180264294953cecd942202dfda64e85195ae36c265daf4052af0464"},
     {file = "regex-2021.10.23-cp39-cp39-win_amd64.whl", hash = "sha256:0f7552429dd39f70057ac5d0e897e5bfe211629652399a21671e53f2a9693a4e"},
     {file = "regex-2021.10.23.tar.gz", hash = "sha256:f3f9a91d3cc5e5b0ddf1043c0ae5fa4852f18a1c0050318baf5fc7930ecc1f9c"},
+]
+six = [
+    {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
+    {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
+]
+text-unidecode = [
+    {file = "text-unidecode-1.3.tar.gz", hash = "sha256:bad6603bb14d279193107714b288be206cac565dfa49aa5b105294dd5c4aab93"},
+    {file = "text_unidecode-1.3-py2.py3-none-any.whl", hash = "sha256:1311f10e8b895935241623731c2ba64f4c455287888b18189350b67134a822e8"},
 ]
 toml = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
