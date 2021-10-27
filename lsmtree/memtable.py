@@ -1,8 +1,7 @@
 from .rbtree import RBTree
 from .segment import Block, Segment
+from .settings import BLOCK_COMPRESSION, BLOCK_SIZE, RBTREE_FLUSH_SIZE
 
-MEGABYTE = 1048576
-KILOBYTE = 1024
 TOMBSTONE = b""
 
 
@@ -13,7 +12,7 @@ class MemTable:
     it is flushed to disk and a new RBTree is constructed.
     """
 
-    def __init__(self, db_dir, flush_tree_size=MEGABYTE):
+    def __init__(self, db_dir, flush_tree_size=RBTREE_FLUSH_SIZE):
         self.db_dir = db_dir
         self.flush_tree_size = flush_tree_size
         self.current_size_bytes = 0
@@ -87,14 +86,16 @@ class MemTable:
             for key, val in self.rbtree.items():
                 block.add(key, val)
 
-                if len(block) > KILOBYTE:
-                    bytes_written = segment.write(block.dump(compress=True))
+                if len(block) > BLOCK_SIZE:
+                    bytes_written = segment.write(
+                        block.dump(compress=BLOCK_COMPRESSION)
+                    )
                     eof_pos = segment.tell_eof
                     index.add(block.key, (eof_pos - bytes_written, eof_pos))
                     block = Block()
 
             # write whatever is left
-            bytes_written = segment.write(block.dump(compress=True))
+            bytes_written = segment.write(block.dump(compress=BLOCK_COMPRESSION))
             index.add(block.key, (segment.tell_eof - bytes_written, segment.tell_eof))
 
         if self.sparse_index is None:
