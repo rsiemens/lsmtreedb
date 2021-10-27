@@ -42,8 +42,23 @@ class Segment:
 
     @property
     def tell_eof(self):
+        cur = self.file.tell()
         self.file.seek(0, io.SEEK_END)
-        return self.file.tell()
+        end = self.file.tell()
+        self.file.seek(cur, io.SEEK_SET)
+        return end
+
+    def __iter__(self):
+        # iterates over the blocks in a segment file
+        offset = 0
+        size = self.tell_eof
+
+        self.file.seek(0, io.SEEK_SET)
+        while offset < size:
+            header = self.file.read(Block.HEADER_SIZE)
+            flags, block_size = unpack(Block.HEADER_FMT, header)
+            yield flags, header + self.file.read(block_size)
+            offset += Block.HEADER_SIZE + block_size
 
     def __enter__(self):
         self.open()

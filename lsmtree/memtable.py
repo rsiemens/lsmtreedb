@@ -89,9 +89,8 @@ class MemTable:
 
                 if len(block) > KILOBYTE:
                     bytes_written = segment.write(block.dump(compress=True))
-                    index.add(
-                        block.key, (segment.tell_eof - bytes_written, segment.tell_eof)
-                    )
+                    eof_pos = segment.tell_eof
+                    index.add(block.key, (eof_pos - bytes_written, eof_pos))
                     block = Block()
 
             # write whatever is left

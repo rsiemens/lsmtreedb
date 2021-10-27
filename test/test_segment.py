@@ -32,6 +32,22 @@ def test_segment_read(tmp_path):
         assert segment.read_range(7) == b"hijk"
 
 
+def test_segment_iter_raw_blocks(tmp_path):
+    with Segment(id=0, db_dir=tmp_path) as segment:
+        for i in range(5):
+            block = Block()
+            block.add(b"foo", b"bar")
+            segment.write(block.dump())
+
+        count = 0
+        for _, raw_block in segment:
+            count += 1
+            for k, v in Block.iter_from_binary(raw_block):
+                assert k == b"foo"
+                assert v == b"bar"
+        assert count == 5
+
+
 def test_block_add():
     block = Block()
 
