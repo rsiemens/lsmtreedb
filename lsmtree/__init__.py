@@ -18,7 +18,7 @@ TODO:
  - [x] Writing blocks of keys instead of individual keys. Also make the index
        actually sparse.
  - [x] Add tombstone support
- - [ ] Background compaction of old segment files
+ - [x] Background compaction of old segment files
  - [ ] Bloom filter for checking if a key is in segment. Attach this to the
        sparse index.
  - [ ] Rebuild sparse index on startup

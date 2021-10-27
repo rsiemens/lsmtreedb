@@ -25,6 +25,7 @@ def stop_compactor():
     _STOP_EVENT.set()
     while _RUNNING:
         pass
+    _STOP_EVENT.clear()
 
 
 class Compactor:
