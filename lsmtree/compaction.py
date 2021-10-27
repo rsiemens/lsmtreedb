@@ -79,8 +79,11 @@ class Compactor:
                     index.add(block.key, (eof_pos - bytes_written, eof_pos))
                     block = Block()
 
-            bytes_written = segment.write(block.dump(compress=BLOCK_COMPRESSION))
-            index.add(block.key, (segment.tell_eof - bytes_written, segment.tell_eof))
+            if block.data:
+                bytes_written = segment.write(block.dump(compress=BLOCK_COMPRESSION))
+                index.add(
+                    block.key, (segment.tell_eof - bytes_written, segment.tell_eof)
+                )
 
         with self.memtable.sparse_index_lock:
             for i in targets:

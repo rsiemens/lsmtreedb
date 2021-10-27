@@ -29,7 +29,6 @@ def test_threshold_exceeded(tmp_path):
     # causes a tree flush since we exceeded max_size_bytes
     memtable[b"e"] = b"e"
     assert memtable.current_size_bytes == 2
-    assert memtable.sparse_index_len == 1
 
 
 def test_flush_tree(tmp_path):

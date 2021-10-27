@@ -80,6 +80,7 @@ def test_block_dump():
         block.dump()
         == b"\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x03\x00foo\x03\x00\x00\x00bar"
     )
+    assert block.key == b"foo"
 
 
 def test_block_iter_from_binary():

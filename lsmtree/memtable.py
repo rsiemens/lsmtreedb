@@ -22,7 +22,7 @@ class MemTable:
         # we want to allow concurrent reads in the future
         self.sparse_index_lock = Lock()
         self.sparse_index = None
-        self.sparse_index_len = 0
+        self.sparse_index_counter = 0
         self.rbtree = RBTree()
 
     def __setitem__(self, key, value):
@@ -86,7 +86,7 @@ class MemTable:
         in the disk. Update the sparse index linked list and then finally
         replace the RBtree with a new one.
         """
-        with Segment(self.sparse_index_len, self.db_dir) as segment:
+        with Segment(self.sparse_index_counter, self.db_dir) as segment:
             index = SparseIndex(entries=[], segment=segment.id)
             block = Block()
 
@@ -102,8 +102,11 @@ class MemTable:
                     block = Block()
 
             # write whatever is left
-            bytes_written = segment.write(block.dump(compress=BLOCK_COMPRESSION))
-            index.add(block.key, (segment.tell_eof - bytes_written, segment.tell_eof))
+            if block.data:
+                bytes_written = segment.write(block.dump(compress=BLOCK_COMPRESSION))
+                index.add(
+                    block.key, (segment.tell_eof - bytes_written, segment.tell_eof)
+                )
 
         if self.sparse_index is None:
             self.sparse_index = index
@@ -112,7 +115,7 @@ class MemTable:
             index.next = old_head
             self.sparse_index = index
 
-        self.sparse_index_len += 1
+        self.sparse_index_counter += 1
         self.rbtree = RBTree()
 
 
