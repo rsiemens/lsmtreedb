@@ -4,6 +4,7 @@ import time
 
 from lsmtree.memtable import MemTable
 from lsmtree.segment import Segment
+from lsmtree.compaction import run_compactor, stop_compactor
 
 
 def dir_size(dir_path):
@@ -18,6 +19,7 @@ def dir_size(dir_path):
 if __name__ == "__main__":
     os.mkdir("db")
     memtable = MemTable(db_dir="db")
+    run_compactor(memtable)
 
     with open("/usr/share/dict/words", "r") as file:
         start = time.time()
@@ -37,6 +39,7 @@ if __name__ == "__main__":
             f"{lineno / total:.2f} reads/sec ({lineno} total reads in {total:.2f} sec)."
         )
 
+    stop_compactor()
     print(f"{memtable.current_size_bytes / 1024:.2f}KB tree size")
     print(f"{dir_size('db') / 1024:.2f}KB db size")
     print(f"{memtable.sparse_index_len} segments")

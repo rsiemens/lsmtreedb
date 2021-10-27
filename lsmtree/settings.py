@@ -18,7 +18,7 @@ RBTREE_FLUSH_SIZE = 1048576  # 1 MB
 # more key value pairs in the sparse index gaps.
 BLOCK_SIZE = 1024  # 1KB
 
-# Should blocks in a segment file be compressed with zlib compression. The
+# Should blocks in a segment file be compressed with zlib compression? The
 # trade-off here is slightly slower write throughput for increased storage
 # efficiency.
 BLOCK_COMPRESSION = True

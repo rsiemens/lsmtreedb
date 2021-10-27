@@ -1,3 +1,5 @@
+from threading import Lock
+
 from .rbtree import RBTree
 from .segment import Block, Segment
 from .settings import BLOCK_COMPRESSION, BLOCK_SIZE, RBTREE_FLUSH_SIZE
@@ -16,6 +18,9 @@ class MemTable:
         self.db_dir = db_dir
         self.flush_tree_size = flush_tree_size
         self.current_size_bytes = 0
+        # An improvement here could be a RWLock instead of simple mutex if
+        # we want to allow concurrent reads in the future
+        self.sparse_index_lock = Lock()
         self.sparse_index = None
         self.sparse_index_len = 0
         self.rbtree = RBTree()
@@ -26,7 +31,8 @@ class MemTable:
 
         additional_bytes = len(key) + len(value)
         if additional_bytes + self.current_size_bytes > self.flush_tree_size:
-            self.flush_tree()
+            with self.sparse_index_lock:
+                self.flush_tree()
             self.current_size_bytes = 0
 
         self.rbtree[key] = value
@@ -38,7 +44,8 @@ class MemTable:
         try:
             val = self.rbtree[key]
         except KeyError:
-            val = self.find_in_segment_file(key)
+            with self.sparse_index_lock:
+                val = self.find_in_segment_file(key)
 
         # value hasn't yet been cleaned up by compaction
         if val == TOMBSTONE:
