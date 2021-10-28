@@ -8,7 +8,7 @@
 # the larger the value the more time that will be spent blocking when the disk
 # is flushed to disk, but how often a disk flush happens will be reduced,
 # resulting in fewer, but larger segment files.
-RBTREE_FLUSH_SIZE = 1048576  # 1 MB
+RBTREE_FLUSH_SIZE = 1048576 * 3  # 3 MB
 
 # The size, in bytes, that a block can grow until a new one is started.
 # Similarly with the red black tree it is possible to go over this limit.
@@ -16,7 +16,7 @@ RBTREE_FLUSH_SIZE = 1048576  # 1 MB
 # A higher value here means the sparse index is less dense, and less writes to
 # disk occur, but read time will be slightly reduced since the block can hold
 # more key value pairs in the sparse index gaps.
-BLOCK_SIZE = 1024  # 1KB
+BLOCK_SIZE = 1024 * 10  # 10 KB
 
 # Should blocks in a segment file be compressed with zlib compression? The
 # trade-off here is slightly slower write throughput for increased storage
