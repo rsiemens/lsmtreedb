@@ -16,7 +16,7 @@ poetry run python generate_example_dataset.py 100000
 poetry run python simple_bench.py
 ```
 
-`simple_bench.py` takes the `--no-compaction` flag to enable background compaction of segment files.
+`simple_bench.py` takes the `--no-compaction` flag to disable background compaction of segment files.
 Enabling it should greatly reduce read times and over all file database size with only a slight hit
 to writes/sec.
 
