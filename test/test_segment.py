@@ -41,7 +41,7 @@ def test_segment_iter_raw_blocks(tmp_path):
             segment.write(block.dump())
 
         count = 0
-        for _, raw_block in segment:
+        for _, _, _, raw_block in segment:
             count += 1
             for k, v in Block.iter_from_binary(raw_block):
                 assert k == b"foo"
@@ -100,6 +100,16 @@ def test_block_iter_from_binary():
     decoded = [(k, v) for k, v in Block.iter_from_binary(dump)]
 
     assert decoded == [(b"foo", b"bar"), (b"hello", b"world!"), (b"key", b"value")]
+
+
+def test_block_is_block_corrupted():
+    block = Block()
+    block.add(b"foo", b"bar")
+    block.add(b"hello", b"world!")
+    data = block.dump()
+    assert not Block.is_block_corrupted(data)
+    data = data[:-1] + b"\x00"  # corrupt it
+    assert Block.is_block_corrupted(data)
 
 
 def test_wal(tmp_path):

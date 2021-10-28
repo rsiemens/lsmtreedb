@@ -125,3 +125,17 @@ def test_bloom_filter():
     assert b"bar" in filter
     assert b"everything_collides" in filter
     assert filter._full
+
+
+def test_memtable_reconstruct(tmp_path):
+    memtable = MemTable(tmp_path)
+    memtable[b"foo"] = b"bar"
+    memtable[b"hello"] = b"world!"
+    memtable.flush_tree()
+    memtable[b"a"] = b"a"
+
+    del memtable  # a: b should be saved in the WAL
+    restored_memtable = MemTable.reconstruct(tmp_path)
+    assert restored_memtable[b"foo"] == b"bar"
+    assert restored_memtable[b"hello"] == b"world!"
+    assert restored_memtable[b"a"] == b"a"

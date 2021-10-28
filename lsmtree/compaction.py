@@ -6,7 +6,7 @@ import threading
 import time
 
 from .memtable import TOMBSTONE, SparseIndex
-from .segment import Block, Segment
+from .segment import Block, Segment, list_segments
 from .settings import BLOCK_COMPRESSION, BLOCK_SIZE
 
 _RUNNING = False
@@ -35,15 +35,7 @@ class Compactor:
         self.interval = interval
 
     def get_target_segments(self):
-        segments = []
-
-        for file in os.listdir(self.db_dir):
-            if os.path.isfile(os.path.join(self.db_dir, file)):
-                segment_id = file.split(".")[1]
-                if segment_id.isnumeric():
-                    segments.append(int(segment_id))
-
-        return sorted(segments)[:2]
+        return sorted(list_segments(self.db_dir))[:2]
 
     def compact(self):
         """
@@ -114,7 +106,7 @@ class Compactor:
 
     def iter_kv_pairs(self, target):
         with Segment(id=target, db_dir=self.db_dir) as segment:
-            for _, raw_block in segment:
+            for _, _, _, raw_block in segment:
                 for k, v in Block.iter_from_binary(raw_block):
                     yield k, v
 

@@ -78,7 +78,7 @@ def test_compactor_compact(tmp_path):
     compactor.compact()
     kvs = []
     with Segment(id=1, db_dir=tmp_path) as segment:
-        for _, raw_block in segment:
+        for _, _, _, raw_block in segment:
             for kv in Block.iter_from_binary(raw_block):
                 kvs.append(kv)
 

@@ -21,9 +21,9 @@ TODO:
  - [x] Background compaction of old segment files
  - [x] Bloom filter for checking if a key is in segment. Attach this to the
        sparse index.
- - [ ] Rebuild sparse index on startup
+ - [x] Rebuild sparse index on startup
  - [x] Block level compression
- - [ ] WAL for the RBtree
+ - [x] WAL for the RBtree
 
 
  LIMITS:

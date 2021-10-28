@@ -1,8 +1,9 @@
+import os
 import zlib
 from threading import Lock
 
 from .rbtree import RBTree
-from .segment import WAL, Block, Segment
+from .segment import WAL, Block, Segment, list_segments
 from .settings import (BLOCK_COMPRESSION, BLOCK_SIZE, BLOOM_FILTER_HASHES,
                        BLOOM_FILTER_SIZE, RBTREE_FLUSH_SIZE)
 
@@ -127,6 +128,57 @@ class MemTable:
         self.sparse_index_counter += 1
         self.rbtree = RBTree()
         self.wal.reset()
+
+    @classmethod
+    def reconstruct(cls, db_dir):
+        # Check the last segment file for corruption in case we crashed mid
+        # write. If so discard the file
+        # Rebuild from WAL
+        memtable = cls(db_dir)
+        segment_ids = sorted(list_segments(db_dir))
+
+        # rebuild the sparse index
+        for segment_id in segment_ids:
+            with Segment(id=segment_id, db_dir=db_dir) as segment:
+                index = SparseIndex(entries=[], segment=segment_id)
+                corrupted = False
+
+                for offset, _, size, block in segment:
+                    if Block.is_block_corrupted(block) and segment_id != max(
+                        segment_ids
+                    ):
+                        raise Exception(f"Corruption on {segment_id} - unrecoverable")
+                    elif Block.is_block_corrupted(block) and segment_id == max(
+                        segment_ids
+                    ):
+                        # The WAL will rebuild this
+                        corrupted = True
+                        break
+
+                    first_key = None
+                    for k, v in Block.iter_from_binary(block):
+                        if first_key is None:
+                            first_key = k
+                        index.bloomfilter.add(k)
+
+                    index.add(first_key, (offset, offset + size + Block.HEADER_SIZE))
+
+            if corrupted:
+                print("Segment corrupted, removing")
+                segment.remove()
+            else:
+                if memtable.sparse_index is None:
+                    memtable.sparse_index = index
+                else:
+                    old_index = memtable.sparse_index
+                    memtable.sparse_index = index
+                    index.next = old_index
+                memtable.sparse_index_counter = memtable.sparse_index.segment + 1
+
+        for k, v in memtable.wal:
+            memtable.rbtree[k] = v
+
+        return memtable
 
 
 class SparseIndex:

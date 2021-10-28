@@ -4,6 +4,18 @@ import zlib
 from struct import pack, unpack
 
 
+def list_segments(db_dir):
+    segments = []
+
+    for file in os.listdir(db_dir):
+        if os.path.isfile(os.path.join(db_dir, file)):
+            segment_id = file.split(".")[1]
+            if segment_id.isnumeric():
+                segments.append(int(segment_id))
+
+    return segments
+
+
 class Segment:
     """
     Represents a file segment which contains the keys and values of a tree in
@@ -40,6 +52,9 @@ class Segment:
         os.fsync(self.file.fileno())
         return written
 
+    def remove(self):
+        os.remove(self.path)
+
     @property
     def tell_eof(self):
         cur = self.file.tell()
@@ -57,7 +72,7 @@ class Segment:
         while offset < size:
             header = self.file.read(Block.HEADER_SIZE)
             flags, _, block_size = unpack(Block.HEADER_FMT, header)
-            yield flags, header + self.file.read(block_size)
+            yield offset, flags, block_size, header + self.file.read(block_size)
             offset += Block.HEADER_SIZE + block_size
 
     def __enter__(self):
@@ -134,6 +149,12 @@ class Block:
             self.key = key
 
     @classmethod
+    def is_block_corrupted(cls, block):
+        _, checksum, _ = unpack(cls.HEADER_FMT, block[: cls.HEADER_SIZE])
+        data = block[cls.HEADER_SIZE :]
+        return zlib.crc32(data) != checksum
+
+    @classmethod
     def iter_from_binary(cls, block, raise_for_corruption=True):
         """
         Iteratively decode key value pairs from a binary block yielding them.
@@ -186,6 +207,6 @@ class WAL:
 
     def __iter__(self):
         with self.segment as segment:
-            for _, raw_block in segment:
+            for _, _, _, raw_block in segment:
                 for kv in Block.iter_from_binary(raw_block):
                     yield kv
