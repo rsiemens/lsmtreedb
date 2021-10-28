@@ -24,9 +24,7 @@ Example based on `poetry run python generate_example_dataset.py 200000`
 
 Without compaction - Slightly faster writes, much slower read and larger overall db size
 ```
-poetry run python generate_example_dataset.py 200000
-
-rsiemens:py-lsmtree$ poetry run python simple_bench.py --no-compaction
+poetry run python simple_bench.py --no-compaction
 4799.69 writes/sec (300000 total in 62.50 sec)
 avg  : 0.0002083469231923421
 min  : 4.38690185546875e-05
