@@ -3,8 +3,8 @@ import pytest
 from lsmtree.memtable import BloomFilter, MemTable, SparseIndex
 
 
-def test_enforce_bytes_only():
-    memtable = MemTable(db_dir=".")
+def test_enforce_bytes_only(tmp_path):
+    memtable = MemTable(db_dir=tmp_path)
 
     with pytest.raises(AssertionError):
         memtable["key"] = b"foo"  # set key needs to be bytes

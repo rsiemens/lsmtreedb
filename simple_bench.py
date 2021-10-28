@@ -61,12 +61,12 @@ def print_results(writes, reads):
     }
 
     print(
-        f"{len(writes)/sum(writes)} writes/sec ({len(writes)} total in {sum(writes):.2f} sec)"
+        f"{len(writes)/sum(writes):.2f} writes/sec ({len(writes)} total in {sum(writes):.2f} sec)"
     )
     print_stats(write_stats)
     print()
     print(
-        f"{len(reads)/sum(reads)} reads/sec ({len(reads)} total in {sum(reads):.2f} sec)"
+        f"{len(reads)/sum(reads):.2f} reads/sec ({len(reads)} total in {sum(reads):.2f} sec)"
     )
     print_stats(read_stats)
 
@@ -95,7 +95,8 @@ if __name__ == "__main__":
     for i, expected in enumerate(expected_records):
         record_id, record = expected
         start = time.time()
-        assert memtable[record_id.encode("utf8")] == record.encode("utf8")
+        result = memtable[record_id.encode("utf8")]
+        assert result == record.encode("utf8"), f"expected {record.encode('utf8')} got {result}"
         read_times.append(time.time() - start)
 
     if compaction:

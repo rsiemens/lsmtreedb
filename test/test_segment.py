@@ -2,7 +2,8 @@ import os
 
 import pytest
 
-from lsmtree.segment import WAL, Block, MaxSizeExceeded, Segment
+from lsmtree.segment import (WAL, Block, BlockCorruption, MaxSizeExceeded,
+                             Segment)
 
 
 def test_segment_write(tmp_path):
@@ -81,6 +82,13 @@ def test_block_dump():
         == b"\x00\xef\xd3\xf5\xe2\x0c\x00\x00\x00\x00\x00\x00\x00\x03\x00foo\x03\x00\x00\x00bar"
     )
     assert block.key == b"foo"
+
+    block = Block()
+    block.add(b"foo", b"bar")
+    data = block.dump()
+    data = data[:-1] + b"\x00"  # corrupt it
+    with pytest.raises(BlockCorruption):
+        [_ for _ in Block.iter_from_binary(data)]
 
 
 def test_block_iter_from_binary():

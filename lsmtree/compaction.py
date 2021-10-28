@@ -57,7 +57,11 @@ class Compactor:
          - release the lock
         """
         targets = self.get_target_segments()
-        if len(targets) != 2:
+        # The second part of this check makes sure we avoid a race condition where
+        # the memtable starts flushing to the newest segment and we pick it up for
+        # compaction before it is fully flushed. So we wait to flush it until the
+        # flush is complete (the sparse_index_counter has been incremented)
+        if len(targets) != 2 or max(targets) == self.memtable.sparse_index_counter:
             return
 
         with Segment(

@@ -24,5 +24,7 @@ BLOCK_SIZE = 1024 * 10  # 10 KB
 BLOCK_COMPRESSION = True
 
 
+# Larger number for less chance of collision and better read performance, but
+# increased memory usage.
 BLOOM_FILTER_SIZE = 9679  # prime number
 BLOOM_FILTER_HASHES = 3

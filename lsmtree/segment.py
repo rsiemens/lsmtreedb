@@ -172,7 +172,7 @@ class WAL:
 
     def __init__(self, db_dir):
         self.db_dir = db_dir
-        self.segment = Segment(db_dir=db_dir, id="log", fname="wal")
+        self.segment = Segment(id="log", db_dir=db_dir, fname="wal")
 
     def add(self, key, value):
         block = Block()
@@ -181,8 +181,8 @@ class WAL:
             segment.write(block.dump(compress=False))
 
     def reset(self):
-        os.remove(os.path.join(self.segment.path))
-        self.segment = Segment(db_dir=self.db_dir, id="log", fname="wal")
+        os.remove(self.segment.path)
+        self.segment = Segment(id="log", db_dir=self.db_dir, fname="wal")
 
     def __iter__(self):
         with self.segment as segment:

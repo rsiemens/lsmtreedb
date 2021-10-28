@@ -1,5 +1,4 @@
 import zlib
-from struct import pack
 from threading import Lock
 
 from .rbtree import RBTree
