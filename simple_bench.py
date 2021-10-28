@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import statistics
 import sys
 import time
 
@@ -38,9 +39,41 @@ def gather_events(fpath):
     return events
 
 
+def print_stats(stats):
+    for k, v in stats.items():
+        print(f"{k:<5}: {v}")
+
+
+def print_results(writes, reads):
+    write_stats = {
+        "avg": statistics.mean(writes),
+        "min": min(writes),
+        "max": max(writes),
+        "median": statistics.median(writes),
+        "stddev": statistics.pstdev(writes),
+    }
+    read_stats = {
+        "avg": statistics.mean(reads),
+        "min": min(reads),
+        "max": max(reads),
+        "median": statistics.median(reads),
+        "stddev": statistics.pstdev(reads),
+    }
+
+    print(
+        f"{len(writes)/sum(writes)} writes/sec ({len(writes)} total in {sum(writes):.2f} sec)"
+    )
+    print_stats(write_stats)
+    print()
+    print(
+        f"{len(reads)/sum(reads)} reads/sec ({len(reads)} total in {sum(reads):.2f} sec)"
+    )
+    print_stats(read_stats)
+
+
 if __name__ == "__main__":
     compaction = True
-    if len(sys.argv) > 1 and sys.argv[1] == '--no-compaction':
+    if len(sys.argv) > 1 and sys.argv[1] == "--no-compaction":
         compaction = False
 
     os.mkdir("db")
@@ -51,22 +84,25 @@ if __name__ == "__main__":
     if compaction:
         run_compactor(memtable)
 
-    start = time.time()
+    write_times = []
     for i, write in enumerate(write_events):
         record_id, record = write
+        start = time.time()
         memtable[record_id.encode("utf8")] = record.encode("utf8")
-    total = time.time() - start
-    print(f"{i / total:.2f} writes/sec ({i} total writes in {total:.2f} sec).")
+        write_times.append(time.time() - start)
 
-    start = time.time()
+    read_times = []
     for i, expected in enumerate(expected_records):
         record_id, record = expected
+        start = time.time()
         assert memtable[record_id.encode("utf8")] == record.encode("utf8")
-    total = time.time() - start
-    print(f"{i / total:.2f} reads/sec ({i} total reads in {total:.2f} sec).")
+        read_times.append(time.time() - start)
 
     if compaction:
         stop_compactor()
+
+    print_results(write_times, read_times)
+    print()
     print(f"{memtable.current_size_bytes / 1048576:.2f}MB tree size")
     print(f"{dir_size('db') / 1048576:.2f}MB db size")
     print(f"{sparse_index_len(memtable)} segments")

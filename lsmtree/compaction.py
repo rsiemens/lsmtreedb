@@ -39,8 +39,9 @@ class Compactor:
 
         for file in os.listdir(self.db_dir):
             if os.path.isfile(os.path.join(self.db_dir, file)):
-                segment_id = int(file.split(".")[1])
-                segments.append(segment_id)
+                segment_id = file.split(".")[1]
+                if segment_id.isnumeric():
+                    segments.append(int(segment_id))
 
         return sorted(segments)[:2]
 
@@ -70,6 +71,7 @@ class Compactor:
                     continue
 
                 block.add(key, val)
+                index.bloomfilter.add(key)
 
                 if len(block) > BLOCK_SIZE:
                     bytes_written = segment.write(

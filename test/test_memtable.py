@@ -1,6 +1,6 @@
 import pytest
 
-from lsmtree.memtable import MemTable, SparseIndex
+from lsmtree.memtable import BloomFilter, MemTable, SparseIndex
 
 
 def test_enforce_bytes_only():
@@ -37,14 +37,16 @@ def test_flush_tree(tmp_path):
     for i in [b"b", b"a", b"c"]:
         memtable[i] = i
 
+    assert [kv for kv in memtable.wal] == [(b"b", b"b"), (b"a", b"a"), (b"c", b"c")]
     memtable.flush_tree()
+    assert [kv for kv in memtable.wal] == []
     assert len(memtable.rbtree) == 0
     assert memtable.sparse_index is not None
-    assert memtable.sparse_index.entries == [(b"a", (0, 32))]
+    assert memtable.sparse_index.entries == [(b"a", (0, 36))]
     # all of these keys are in the same block so they share an index
-    assert memtable.sparse_index.find(b"a") == (0, 32)
-    assert memtable.sparse_index.find(b"b") == (0, 32)
-    assert memtable.sparse_index.find(b"c") == (0, 32)
+    assert memtable.sparse_index.find(b"a") == (0, 36)
+    assert memtable.sparse_index.find(b"b") == (0, 36)
+    assert memtable.sparse_index.find(b"c") == (0, 36)
 
 
 def test_read_from_sparse_index(tmp_path):
@@ -100,3 +102,26 @@ def test_sparse_index_find():
     assert index.find("d") == 2
     assert index.find("e") == 4
     assert index.find("f") == 4
+
+
+def test_bloom_filter():
+    filter = BloomFilter(size=100, hashes=3)
+
+    assert b"foo" not in filter
+    filter.add(b"foo")
+    assert b"foo" in filter
+    assert not filter._full
+
+    assert b"bar" not in filter
+    filter.add(b"bar")
+    assert b"bar" in filter
+    assert not filter._full
+
+    # everything will collide
+    filter = BloomFilter(size=1, hashes=2)
+    assert b"foo" not in filter
+    filter.add(b"foo")
+    assert b"foo" in filter
+    assert b"bar" in filter
+    assert b"everything_collides" in filter
+    assert filter._full

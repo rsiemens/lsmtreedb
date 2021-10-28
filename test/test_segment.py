@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from lsmtree.segment import Block, MaxSizeExceeded, Segment
+from lsmtree.segment import WAL, Block, MaxSizeExceeded, Segment
 
 
 def test_segment_write(tmp_path):
@@ -78,7 +78,7 @@ def test_block_dump():
     block.add(b"foo", b"bar")
     assert (
         block.dump()
-        == b"\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x03\x00foo\x03\x00\x00\x00bar"
+        == b"\x00\xef\xd3\xf5\xe2\x0c\x00\x00\x00\x00\x00\x00\x00\x03\x00foo\x03\x00\x00\x00bar"
     )
     assert block.key == b"foo"
 
@@ -92,3 +92,19 @@ def test_block_iter_from_binary():
     decoded = [(k, v) for k, v in Block.iter_from_binary(dump)]
 
     assert decoded == [(b"foo", b"bar"), (b"hello", b"world!"), (b"key", b"value")]
+
+
+def test_wal(tmp_path):
+    wal = WAL(tmp_path)
+    wal.add(b"foo", b"bar")
+    wal.add(b"hello", b"world!")
+
+    results = [item for item in wal]
+    assert results == [
+        (b"foo", b"bar"),
+        (b"hello", b"world!"),
+    ]
+
+    wal.reset()
+    results = [item for item in wal]
+    assert results == []

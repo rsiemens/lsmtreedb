@@ -19,7 +19,7 @@ TODO:
        actually sparse.
  - [x] Add tombstone support
  - [x] Background compaction of old segment files
- - [ ] Bloom filter for checking if a key is in segment. Attach this to the
+ - [x] Bloom filter for checking if a key is in segment. Attach this to the
        sparse index.
  - [ ] Rebuild sparse index on startup
  - [x] Block level compression

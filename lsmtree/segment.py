@@ -56,7 +56,7 @@ class Segment:
         self.file.seek(0, io.SEEK_SET)
         while offset < size:
             header = self.file.read(Block.HEADER_SIZE)
-            flags, block_size = unpack(Block.HEADER_FMT, header)
+            flags, _, block_size = unpack(Block.HEADER_FMT, header)
             yield flags, header + self.file.read(block_size)
             offset += Block.HEADER_SIZE + block_size
 
@@ -72,6 +72,10 @@ class MaxSizeExceeded(Exception):
     pass
 
 
+class BlockCorruption(Exception):
+    pass
+
+
 class Block:
     """
     A block is logical chunk of data in a segment. It contains a simple size
@@ -80,13 +84,15 @@ class Block:
 
     TODO: add a crc header for corruption checking
 
-    +----------------------+---------------------------+------------------+-------------+------------------+-------------+
-    | 1 bytes header flags | 8 bytes block size header | 2 bytes key size | N bytes key | 4 bytes val size | N bytes val |
-    +----------------------+---------------------------+------------------+-------------+------------------+-------------+
+    +----------------------+-------------------+---------------------------+------------------+-------------+------------------+-------------+
+    | 1 bytes header flags | 4 bytes crc check | 8 bytes block size header | 2 bytes key size | N bytes key | 4 bytes val size | N bytes val |
+    +----------------------+-------------------+---------------------------+------------------+-------------+------------------+-------------+
     """
 
-    HEADER_FMT = "<BQ"  # unsigned 8 byte long long, unsigned 1 byte char
-    HEADER_SIZE = 9
+    HEADER_FMT = (
+        "<BIQ"  # unsigned 1 byte char, unsigned 4byte int, unsigned 8 byte long long,
+    )
+    HEADER_SIZE = 13
     KEY_SIZE_FMT = "<H"  # unsigned 2 byte short
     VAL_SIZE_FMT = "<I"  # unsigned 4 byte int
     COMPRESSION_FLAG = 0b10000000
@@ -109,7 +115,8 @@ class Block:
             flags |= self.COMPRESSION_FLAG
             data = zlib.compress(data, level=zlib.Z_BEST_SPEED)
 
-        header = pack(self.HEADER_FMT, flags, len(data))
+        checksum = zlib.crc32(data)
+        header = pack(self.HEADER_FMT, flags, checksum, len(data))
         return header + data
 
     def add(self, key, value):
@@ -127,13 +134,16 @@ class Block:
             self.key = key
 
     @classmethod
-    def iter_from_binary(cls, block):
+    def iter_from_binary(cls, block, raise_for_corruption=True):
         """
         Iteratively decode key value pairs from a binary block yielding them.
         """
-        flags, _ = unpack(cls.HEADER_FMT, block[: cls.HEADER_SIZE])
+        flags, checksum, _ = unpack(cls.HEADER_FMT, block[: cls.HEADER_SIZE])
         is_compressed = flags & cls.COMPRESSION_FLAG
         data = block[cls.HEADER_SIZE :]
+
+        if raise_for_corruption and zlib.crc32(data) != checksum:
+            raise BlockCorruption()
 
         if is_compressed:
             data = zlib.decompress(data)
@@ -152,3 +162,30 @@ class Block:
             offset += val_len
 
             yield key, value
+
+
+class WAL:
+    """
+    The write ahead log for providing durability of the rbtree in case of
+    crashes.
+    """
+
+    def __init__(self, db_dir):
+        self.db_dir = db_dir
+        self.segment = Segment(db_dir=db_dir, id="log", fname="wal")
+
+    def add(self, key, value):
+        block = Block()
+        block.add(key, value)
+        with self.segment as segment:
+            segment.write(block.dump(compress=False))
+
+    def reset(self):
+        os.remove(os.path.join(self.segment.path))
+        self.segment = Segment(db_dir=self.db_dir, id="log", fname="wal")
+
+    def __iter__(self):
+        with self.segment as segment:
+            for _, raw_block in segment:
+                for kv in Block.iter_from_binary(raw_block):
+                    yield kv

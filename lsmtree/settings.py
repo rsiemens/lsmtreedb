@@ -22,3 +22,7 @@ BLOCK_SIZE = 1024 * 10  # 10 KB
 # trade-off here is slightly slower write throughput for increased storage
 # efficiency.
 BLOCK_COMPRESSION = True
+
+
+BLOOM_FILTER_SIZE = 9679  # prime number
+BLOOM_FILTER_HASHES = 3

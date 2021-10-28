@@ -1,8 +1,11 @@
+import zlib
+from struct import pack
 from threading import Lock
 
 from .rbtree import RBTree
-from .segment import Block, Segment
-from .settings import BLOCK_COMPRESSION, BLOCK_SIZE, RBTREE_FLUSH_SIZE
+from .segment import WAL, Block, Segment
+from .settings import (BLOCK_COMPRESSION, BLOCK_SIZE, BLOOM_FILTER_HASHES,
+                       BLOOM_FILTER_SIZE, RBTREE_FLUSH_SIZE)
 
 TOMBSTONE = b""
 
@@ -24,6 +27,7 @@ class MemTable:
         self.sparse_index = None
         self.sparse_index_counter = 0
         self.rbtree = RBTree()
+        self.wal = WAL(db_dir)
 
     def __setitem__(self, key, value):
         assert isinstance(key, bytes)
@@ -35,6 +39,7 @@ class MemTable:
                 self.flush_tree()
             self.current_size_bytes = 0
 
+        self.wal.add(key, value)
         self.rbtree[key] = value
 
         self.current_size_bytes += additional_bytes
@@ -55,14 +60,18 @@ class MemTable:
 
     def __delitem__(self, key):
         assert isinstance(key, bytes)
-        self.rbtree[key] = b""
+        self.wal.add(key, TOMBSTONE)
+        self.rbtree[key] = TOMBSTONE
 
     def find_in_segment_file(self, key):
         sparse_index = self.sparse_index
 
         while sparse_index:
-            start, end = sparse_index.find(key)
+            if key not in sparse_index.bloomfilter:
+                sparse_index = sparse_index.next
+                continue
 
+            start, end = sparse_index.find(key)
             with Segment(id=sparse_index.segment, db_dir=self.db_dir) as segment:
                 block = segment.read_range(start, end)
                 val = self.find_in_block(key, block)
@@ -92,6 +101,7 @@ class MemTable:
 
             for key, val in self.rbtree.items():
                 block.add(key, val)
+                index.bloomfilter.add(key)
 
                 if len(block) > BLOCK_SIZE:
                     bytes_written = segment.write(
@@ -117,6 +127,7 @@ class MemTable:
 
         self.sparse_index_counter += 1
         self.rbtree = RBTree()
+        self.wal.reset()
 
 
 class SparseIndex:
@@ -136,6 +147,9 @@ class SparseIndex:
         self.entries = entries
         self.segment = segment
         self.next = None
+        self.bloomfilter = BloomFilter(
+            size=BLOOM_FILTER_SIZE, hashes=BLOOM_FILTER_HASHES
+        )
 
         if sort:
             self.sort()
@@ -162,3 +176,37 @@ class SparseIndex:
                 return entry[1]
 
         return self.entries[high][1]
+
+
+class BloomFilter:
+    def __init__(self, size, hashes):
+        # This is very simple. A bit array would be nicer and more memory friendly.
+        self.size = size
+        self.hashes = hashes
+        self._filter = [False] * size
+        self._full = False
+
+    def _get_hashed_indexes(self, item):
+        indexes = []
+        for i in range(self.hashes):
+            hash = zlib.crc32(item + bytes(i))
+            indexes.append(hash % self.size)
+        return indexes
+
+    def __contains__(self, item):
+        # save the cost of doing some hash checks
+        if self._full:
+            return True
+
+        indexes = self._get_hashed_indexes(item)
+        return all([self._filter[i] for i in indexes])
+
+    def add(self, item):
+        if self._full:
+            return
+
+        for index in self._get_hashed_indexes(item):
+            self._filter[index] = True
+
+        if all(self._filter):
+            self._full = True
